@@ -9,6 +9,10 @@ i symulacji wysyłki do SAP:
 Komunikacja z SAP jest symulowana: losowe błędy łączności i opóźnienia są konfigurowalne.
 Błąd jednej operacji nie zatrzymuje procesu, system przechodzi do kolejnej operacji.
 
+### Nawigacja
+
+Z Object Page wracasz do listy przyciskiem **Back to list** w nagłówku.
+
 ## Uruchomienie
 
 Wymagania: Node.js 20 lub nowszy, dostęp do internetu (UI5 ładowany z `ui5.sap.com`).
@@ -20,7 +24,7 @@ npm test             # testy jednostkowe parsera CSV i silnika przetwarzania
 ```
 
 Aplikacja: `http://localhost:4004/bp-credit/webapp/index.html` (port zależy od konfiguracji CAP).
-Przykładowe pliki: `samples/bank-pl-sample.csv` (poprawny), `samples/bank-pl-invalid.csv` (błędny).
+
 
 ### Konfiguracja symulacji SAP
 
@@ -47,8 +51,22 @@ Plik CSV z kolumnami w kolejności:
 - Separator: `;` lub `,` (wybierany automatycznie).
 - Nagłówek jest pomijany, jeśli kolumny kwot zawierają litery.
 - Kwoty: przecinek jako separator dziesiętny (`1 250 000,00`) lub kropka (`1250000.00`).
-- Plik jest przyjmowany w całości albo wcale: jeden błędny wiersz oznacza status `ParseError`
-  i komunikat z numerami linii. Żadne linie nie są tworzone.
+
+**Walidacja wierszy.** Wszystkie wiersze pliku są wczytywane. Wiersz, który nie przechodzi walidacji,
+dostaje `validationError` (opis błędu) i status `Incorrect` na obu statusach linii. Takie linie są
+pomijane przy przetwarzaniu i nigdy nie są wysyłane do SAP. Reguły:
+
+- dokładnie 6 kolumn,
+- jednostka gospodarcza, obszar kontroli kredytowej i kod BP są wypełnione,
+- CR limit i CR exposure są poprawnymi kwotami,
+- **jedna jednostka gospodarcza na plik**: jednostką pliku jest najczęściej występująca jednostka
+  wśród poprawnych wierszy; wiersze z inną jednostką są `Incorrect`.
+
+Plik jest odrzucany w całości (`ParseError`) tylko wtedy, gdy jest pusty albo nie zawiera
+żadnego wiersza danych.
+
+**Nagłówek pliku** pokazuje statystyki: `Rows in file` (wszystkie wiersze), `Incorrect rows`
+(wiersze z błędem walidacji), `Limit updated` i `Exposure updated`.
 
 ### Status pliku
 
@@ -58,12 +76,15 @@ Plik CSV z kolumnami w kolejności:
 | `Processing` | przetwarzanie w toku (stan przejściowy) | — |
 | `Completed` | wszystkie operacje limit i exposure wysłane | — |
 | `CompletedWithErrors` | część operacji nie powiodła się | Retry failed lines |
-| `ParseError` | błędny CSV, nic nie zaimportowano | — |
+| `ParseError` | plik pusty lub bez wierszy danych, nic nie zaimportowano | — |
 
 ### Statusy linii BP (dwa niezależne)
 
-- `limitStatus` – aktualizacja limitu: `Pending` / `Sent` / `Failed`
-- `exposureStatus` – aktualizacja exposure: `Pending` / `Sent` / `Failed`
+- `limitStatus` – aktualizacja limitu: `Pending` / `Sent` / `Failed` / `Incorrect`
+- `exposureStatus` – aktualizacja exposure: `Pending` / `Sent` / `Failed` / `Incorrect`
+
+`Incorrect` oznacza błąd walidacji w pliku (linia pomijana, nie podlega ponawianiu).
+Poprawić ją można tylko w pliku źródłowym z banku, a następnie zaimportować plik ponownie.
 
 Dla każdej linii, w kolejności: najpierw limit, potem exposure. Błąd łączności oznacza
 `Failed` tylko dla tej operacji, a system przechodzi dalej (również do exposure, gdy limit się nie udał).
@@ -71,8 +92,12 @@ Dla każdej linii, w kolejności: najpierw limit, potem exposure. Błąd łączn
 ### Ponawianie
 
 `Retry failed lines` wysyła ponownie wyłącznie operacje w statusie `Failed` lub `Pending`.
+Linie `Incorrect` są pomijane.
 Operacje już `Sent` nie są wysyłane ponownie. Liczniki prób (`limitAttempts`, `exposureAttempts`)
 i ostatni błąd (`lastError`) są zapisywane na linii.
+
+**Po zmianie wersji:** jeśli masz `db.sqlite` z wcześniejszej wersji aplikacji, usuń plik
+(`rm db.sqlite`) przed `npm start`, bo zmienił się schemat tabel.
 
 ## Architektura
 
@@ -90,6 +115,9 @@ app/bp-credit/webapp/      aplikacja SAPUI5: manifest (List Report + Object Page
 ## Założenia do weryfikacji
 
 - Kolejność kolumn w CSV i separator dziesiętny — jak w opisie (przykład w `samples/`).
+- Plik źródłowy zawiera jedną jednostkę gospodarczą. Jeśli bank wysyła kilka jednostek w jednym
+  pliku, należy to potwierdzić: obecnie wiersze innych jednostek są `Incorrect`.
+- Linie w tabeli nie są sortowane po numerze wiersza (brak wpływu na przetwarzanie).
 - Przetwarzanie jest synchroniczne (akcja czeka na zakończenie); w produkcji wymagałoby kolejki
   i zadań w tle.
 - Kraj wybierany przy imporcie (lista PL/DE/CZ/SK/HU) służy do filtrowania; nie wpływa na wysyłkę.

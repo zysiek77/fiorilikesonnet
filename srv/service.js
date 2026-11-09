@@ -46,13 +46,18 @@ module.exports = class CreditService extends cds.ApplicationService {
             }
 
             const summary = summarize(lines);
+            const messages = [];
+            if (summary.failedLines > 0) {
+                messages.push(`${summary.failedLines} line(s) with failed operations. Use "Retry failed lines".`);
+            }
+            if (summary.incorrectLines > 0) {
+                messages.push(`${summary.incorrectLines} incorrect line(s) skipped.`);
+            }
             await UPDATE(Files, ID).set({
                 status: summary.status,
                 limitOk: summary.limitOk,
                 exposureOk: summary.exposureOk,
-                errorMessage: summary.failedLines > 0
-                    ? `${summary.failedLines} line(s) with failed operations. Use "Retry failed lines".`
-                    : null
+                errorMessage: messages.length > 0 ? messages.join(' ') : null
             });
 
             return loadFile(ID);
@@ -76,40 +81,49 @@ module.exports = class CreditService extends cds.ApplicationService {
             if (!bank) return req.reject(400, 'Bank is required');
             if (!csvContent || !csvContent.trim()) return req.reject(400, 'File content is empty');
 
-            const { rows, errors } = parseCsv(csvContent);
+            const { rows, fileErrors } = parseCsv(csvContent);
             const ID = cds.utils.uuid();
 
-            if (errors.length > 0) {
+            if (fileErrors.length > 0) {
                 await INSERT.into(Files).entries({
                     ID, fileName, country, bank,
                     status: 'ParseError',
                     rowCount: 0,
+                    incorrectCount: 0,
                     limitOk: 0,
                     exposureOk: 0,
-                    errorMessage: errors.join(' | ').slice(0, MAX_ERROR_LENGTH)
+                    errorMessage: fileErrors.join(' | ').slice(0, MAX_ERROR_LENGTH)
                 });
                 return loadFile(ID);
             }
+
+            const incorrectCount = rows.filter(row => row.validationError).length;
 
             await INSERT.into(Files).entries({
                 ID, fileName, country, bank,
                 status: 'Parsed',
                 rowCount: rows.length,
+                incorrectCount,
                 limitOk: 0,
-                exposureOk: 0
+                exposureOk: 0,
+                errorMessage: incorrectCount > 0
+                    ? `${incorrectCount} incorrect line(s) will be skipped. See "Incorrect rows" and "Validation error" in the lines.`
+                    : null
             });
 
-            if (rows.length > 0) {
-                await INSERT.into(BpLines).entries(rows.map(row => ({
+            await INSERT.into(BpLines).entries(rows.map(row => {
+                const incorrect = Boolean(row.validationError);
+                return {
                     ...row,
                     ID: cds.utils.uuid(),
                     file_ID: ID,
-                    limitStatus: 'Pending',
-                    exposureStatus: 'Pending',
+                    limitStatus: incorrect ? 'Incorrect' : 'Pending',
+                    exposureStatus: incorrect ? 'Incorrect' : 'Pending',
                     limitAttempts: 0,
-                    exposureAttempts: 0
-                })));
-            }
+                    exposureAttempts: 0,
+                    lastError: null
+                };
+            }));
 
             return loadFile(ID);
         });

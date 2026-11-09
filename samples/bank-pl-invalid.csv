@@ -1,4 +1,8 @@
 kod jednostki gospodarczej;obszar kontroli kredytowej;kod BP;nazwa BP;cr limit;cr exposure
-PL01;1000;BP0001;Acme;100000,00;25000,50
-PL01;1000;BP0002;Beta;abc;1
-PL01;1000;BP0003
+PL01;1000;BP0001;Acme Sp. z o.o.;100000,00;25000,50
+PL01;1000;BP0002;Beta Logistics S.A.;abc;180000,00
+PL01;1000;BP0003;Gamma Trading;50000,00
+PL01;;BP0004;Delta Retail;10000,00;0,00
+PL02;2000;BP0104;Epsilon Energy;75000,00;-1200,00
+PL02;2000;BP0105;Zeta Consulting;20000,00;19999,99
+PL01;1000;BP0008;Theta Foods;80000,00;79500,00

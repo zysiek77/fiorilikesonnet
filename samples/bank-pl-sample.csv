@@ -2,8 +2,6 @@ kod jednostki gospodarczej;obszar kontroli kredytowej;kod BP;nazwa BP;cr limit;c
 PL01;1000;BP0001;Acme Sp. z o.o.;100000,00;25000,50
 PL01;1000;BP0002;Beta Logistics S.A.;250 000,00;180000,00
 PL01;1000;BP0003;Gamma Trading;50000,00;0,00
-PL02;2000;BP0104;Delta Retail Sp. k.;1 500 000,00;1 250 750,25
-PL02;2000;BP0105;Epsilon Energy;75000,00;-1200,00
-PL02;2000;BP0106;Zeta Consulting;20000,00;19999,99
 PL01;1000;BP0007;"Eta; Holding Sp. z o.o.";300000,00;120000,00
 PL01;1000;BP0008;Theta Foods;80000,00;79500,00
+PL01;1000;BP0009;Iota Bakery;15000,00;-500,00

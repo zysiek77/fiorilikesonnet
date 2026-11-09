@@ -16,24 +16,19 @@
  *   - an optional header row is skipped when its amount columns contain letters
  *   - decimal separator: ',' (Polish) or '.'; spaces are ignored as thousand separators
  *   - fields may be wrapped in double quotes ("" escapes a quote)
- *   - a file is all-or-nothing: any invalid row makes the whole file invalid
+ *
+ * Validation is per row. Every data row is loaded; a row that breaks a rule gets
+ * validationError set and is treated as Incorrect (skipped during processing).
+ * Rules:
+ *   - exactly 6 columns
+ *   - business unit, credit control area and BP code are not empty
+ *   - CR limit and CR exposure are valid amounts
+ *   - one business unit per file: rows with a unit other than the file's unit
+ *     (the most frequent unit among valid rows) are Incorrect
  */
 
 const EXPECTED_COLUMNS = 6;
-const MAX_REPORTED_ERRORS = 20;
 const AMOUNT_PATTERN = /^-?\d+(\.\d{1,2})?$/;
-
-function detectSeparator(firstLine) {
-    const semicolonCells = splitLine(firstLine, ';').length;
-    if (semicolonCells === EXPECTED_COLUMNS) {
-        return ';';
-    }
-    const commaCells = splitLine(firstLine, ',').length;
-    if (commaCells === EXPECTED_COLUMNS) {
-        return ',';
-    }
-    return firstLine.includes(';') ? ';' : ',';
-}
 
 function splitLine(line, separator) {
     const cells = [];
@@ -63,6 +58,16 @@ function splitLine(line, separator) {
     return cells;
 }
 
+function detectSeparator(firstLine) {
+    if (splitLine(firstLine, ';').length === EXPECTED_COLUMNS) {
+        return ';';
+    }
+    if (splitLine(firstLine, ',').length === EXPECTED_COLUMNS) {
+        return ',';
+    }
+    return firstLine.includes(';') ? ';' : ',';
+}
+
 /** Returns a number with two decimals, or NaN when the text is not a valid amount. */
 function parseAmount(text) {
     const normalized = String(text ?? '')
@@ -84,24 +89,52 @@ function looksLikeHeader(cells) {
 }
 
 /**
+ * Enforces one business unit per file. The file's unit is the most frequent unit
+ * among rows without other errors; every other unit is marked as an error.
+ * Mutates the rows.
+ */
+function applySingleBusinessUnitRule(rows) {
+    const counts = new Map();
+    for (const row of rows) {
+        if (!row.validationError && row.unitCode) {
+            counts.set(row.unitCode, (counts.get(row.unitCode) || 0) + 1);
+        }
+    }
+    if (counts.size <= 1) {
+        return rows;
+    }
+    let fileUnit = null;
+    for (const [unit, count] of counts) {
+        if (fileUnit === null || count > counts.get(fileUnit)) {
+            fileUnit = unit;
+        }
+    }
+    for (const row of rows) {
+        if (!row.validationError && row.unitCode && row.unitCode !== fileUnit) {
+            row.validationError = `Line ${row.lineNo}: business unit ${row.unitCode} differs from file unit ${fileUnit} (one business unit per file)`;
+        }
+    }
+    return rows;
+}
+
+/**
  * @param {string} content raw CSV text
- * @returns {{ rows: Array<object>, errors: string[] }}
+ * @returns {{ rows: Array<object>, fileErrors: string[] }}
+ *   rows: every data row, with validationError (string) or null
+ *   fileErrors: problems that make the whole file unusable (empty file, no data rows)
  */
 function parseCsv(content) {
     const text = String(content ?? '').replace(/^﻿/, '');
-    const physicalLines = text.split(/\r?\n/);
-    const lines = physicalLines
+    const lines = text.split(/\r?\n/)
         .map((line, index) => ({ line: line.trimEnd(), lineNo: index + 1 }))
         .filter(entry => entry.line.trim() !== '');
 
-    const errors = [];
-    const rows = [];
-
     if (lines.length === 0) {
-        return { rows, errors: ['File is empty'] };
+        return { rows: [], fileErrors: ['File is empty'] };
     }
 
     const separator = detectSeparator(lines[0].line);
+    const rows = [];
 
     lines.forEach(({ line, lineNo }, index) => {
         const cells = splitLine(line, separator);
@@ -110,27 +143,18 @@ function parseCsv(content) {
             return;
         }
 
-        if (cells.length !== EXPECTED_COLUMNS) {
-            errors.push(`Line ${lineNo}: expected ${EXPECTED_COLUMNS} columns, found ${cells.length}`);
-            return;
-        }
+        const [unitCode = '', creditArea = '', bpCode = '', bpName = '', limitText = '', exposureText = ''] = cells;
+        const problems = [];
 
-        const [unitCode, creditArea, bpCode, bpName, limitText, exposureText] = cells;
-        const rowErrors = [];
-
-        if (!unitCode) rowErrors.push('business unit is empty');
-        if (!creditArea) rowErrors.push('credit control area is empty');
-        if (!bpCode) rowErrors.push('BP code is empty');
+        if (cells.length !== EXPECTED_COLUMNS) problems.push(`expected ${EXPECTED_COLUMNS} columns, found ${cells.length}`);
+        if (!unitCode) problems.push('business unit is empty');
+        if (!creditArea) problems.push('credit control area is empty');
+        if (!bpCode) problems.push('BP code is empty');
 
         const crLimit = parseAmount(limitText);
         const crExposure = parseAmount(exposureText);
-        if (Number.isNaN(crLimit)) rowErrors.push(`invalid CR limit "${limitText}"`);
-        if (Number.isNaN(crExposure)) rowErrors.push(`invalid CR exposure "${exposureText}"`);
-
-        if (rowErrors.length > 0) {
-            errors.push(`Line ${lineNo}: ${rowErrors.join(', ')}`);
-            return;
-        }
+        if (Number.isNaN(crLimit)) problems.push(`invalid CR limit "${limitText}"`);
+        if (Number.isNaN(crExposure)) problems.push(`invalid CR exposure "${exposureText}"`);
 
         rows.push({
             lineNo,
@@ -138,17 +162,18 @@ function parseCsv(content) {
             creditArea,
             bpCode,
             bpName,
-            crLimit,
-            crExposure
+            crLimit: Number.isNaN(crLimit) ? null : crLimit,
+            crExposure: Number.isNaN(crExposure) ? null : crExposure,
+            validationError: problems.length > 0 ? `Line ${lineNo}: ${problems.join(', ')}` : null
         });
     });
 
-    if (errors.length > MAX_REPORTED_ERRORS) {
-        const hidden = errors.length - MAX_REPORTED_ERRORS;
-        errors.splice(MAX_REPORTED_ERRORS, hidden, `... and ${hidden} more error(s)`);
+    if (rows.length === 0) {
+        return { rows, fileErrors: ['File contains no data rows'] };
     }
 
-    return { rows, errors };
+    applySingleBusinessUnitRule(rows);
+    return { rows, fileErrors: [] };
 }
 
-module.exports = { parseCsv, parseAmount, splitLine };
+module.exports = { parseCsv, parseAmount, splitLine, applySingleBusinessUnitRule };

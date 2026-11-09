@@ -92,3 +92,29 @@ test('simulator with failureRate 1 fails every call and 0 never fails', async ()
     await assert.doesNotReject(never.updateExposure({ bpCode: 'BP1' }));
     assert.throws(() => new SapSimulator({ failureRate: 2 }), /between 0 and 1/);
 });
+
+test('incorrect lines are skipped and counted separately', async () => {
+    const incorrect = makeLine('BAD', { limitStatus: 'Incorrect', exposureStatus: 'Incorrect', validationError: 'bad amount' });
+    const lines = [incorrect, makeLine('BP1')];
+    const sap = scriptedSap({});
+    await processLines(lines, sap);
+
+    assert.deepEqual(sap.calls, ['limit:BP1', 'exposure:BP1']);
+    assert.equal(incorrect.limitStatus, 'Incorrect');
+    assert.equal(incorrect.limitAttempts, 0);
+
+    const summary = summarize(lines);
+    assert.equal(summary.status, 'Completed');
+    assert.equal(summary.incorrectLines, 1);
+    assert.equal(summary.failedLines, 0);
+    assert.equal(summary.limitOk, 1);
+});
+
+test('failed lines are counted and make the file CompletedWithErrors', async () => {
+    const lines = [makeLine('BP1'), makeLine('BAD', { limitStatus: 'Incorrect', exposureStatus: 'Incorrect' })];
+    await processLines(lines, scriptedSap({ exposure: ['fail'] }));
+    const summary = summarize(lines);
+    assert.equal(summary.status, 'CompletedWithErrors');
+    assert.equal(summary.failedLines, 1);
+    assert.equal(summary.incorrectLines, 1);
+});

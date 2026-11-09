@@ -13,6 +13,7 @@ annotate service.Files with @(
         { $Type: 'UI.DataField', Value: bank,         Label: 'Bank' },
         { $Type: 'UI.DataField', Value: status,       Label: 'Status' },
         { $Type: 'UI.DataField', Value: rowCount,     Label: 'Rows' },
+        { $Type: 'UI.DataField', Value: incorrectCount, Label: 'Incorrect rows' },
         { $Type: 'UI.DataField', Value: limitOk,      Label: 'Limit updated' },
         { $Type: 'UI.DataField', Value: exposureOk,   Label: 'Exposure updated' },
         { $Type: 'UI.DataField', Value: createdAt,    Label: 'Imported at' }
@@ -38,6 +39,7 @@ annotate service.Files with @(
             { $Type: 'UI.DataField', Value: bank },
             { $Type: 'UI.DataField', Value: status },
             { $Type: 'UI.DataField', Value: rowCount },
+            { $Type: 'UI.DataField', Value: incorrectCount },
             { $Type: 'UI.DataField', Value: limitOk },
             { $Type: 'UI.DataField', Value: exposureOk },
             { $Type: 'UI.DataField', Value: errorMessage }
@@ -60,6 +62,7 @@ annotate service.BpLines with @(
         { $Type: 'UI.DataField', Value: exposureStatus,   Label: 'Exposure status' },
         { $Type: 'UI.DataField', Value: limitAttempts,    Label: 'Limit attempts' },
         { $Type: 'UI.DataField', Value: exposureAttempts, Label: 'Exposure attempts' },
+        { $Type: 'UI.DataField', Value: validationError,  Label: 'Validation error' },
         { $Type: 'UI.DataField', Value: lastError,        Label: 'Last error' },
         { $Type: 'UI.DataField', Value: unitCode,         Label: 'Business unit' },
         { $Type: 'UI.DataField', Value: creditArea,       Label: 'Credit control area' }

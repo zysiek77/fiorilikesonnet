@@ -133,7 +133,19 @@
                     "options": {
                         "settings": {
                             "entitySet": "Files",
-                            "navigation": {}
+                            "navigation": {},
+                            "content": {
+                                "header": {
+                                    "actions": {
+                                        "backToList": {
+                                            "press": "bpcredit.ext.Navigation.backToList",
+                                            "text": "Back to list",
+                                            "visible": true,
+                                            "enabled": true
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

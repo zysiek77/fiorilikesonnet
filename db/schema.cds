@@ -13,9 +13,10 @@ type FileStatus : String(24) enum {
 
 /** Status of a single SAP operation (limit update or exposure update) on a BP line. */
 type OpStatus : String(10) enum {
-    Pending;
-    Sent;
-    Failed;
+    Pending;    // not sent yet
+    Sent;       // accepted by SAP
+    Failed;     // communication failure, can be retried
+    Incorrect;  // line failed validation in the file, never sent
 };
 
 entity Files : cuid, managed {
@@ -23,7 +24,8 @@ entity Files : cuid, managed {
     country      : String(2)    @title: 'Country';
     bank         : String(100)  @title: 'Bank';
     status       : FileStatus   @title: 'Status' default 'Parsed';
-    rowCount     : Integer      @title: 'Rows' default 0;
+    rowCount     : Integer      @title: 'Rows in file' default 0;
+    incorrectCount : Integer    @title: 'Incorrect rows' default 0;
     limitOk      : Integer      @title: 'Limit updated' default 0;
     exposureOk   : Integer      @title: 'Exposure updated' default 0;
     errorMessage : String(1000) @title: 'Error';
@@ -43,5 +45,6 @@ entity BpLines : cuid {
     exposureStatus   : OpStatus     @title: 'Exposure status' default 'Pending';
     limitAttempts    : Integer      @title: 'Limit attempts'    default 0;
     exposureAttempts : Integer      @title: 'Exposure attempts' default 0;
+    validationError  : String(500)  @title: 'Validation error';
     lastError        : String(500)  @title: 'Last error';
 }
