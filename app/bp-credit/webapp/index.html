@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Bank credit limits</title>
+    <script
+        id="sap-ui-bootstrap"
+        src="https://ui5.sap.com/1.154.0/resources/sap-ui-core.js"
+        data-sap-ui-theme="sap_horizon"
+        data-sap-ui-libs="sap.fe.templates"
+        data-sap-ui-compatVersion="edge"
+        data-sap-ui-async="true"
+        data-sap-ui-resourceroots='{"bpcredit": "./"}'
+        data-sap-ui-oninit="module:sap/ui/core/ComponentSupport">
+    </script>
+    <style>
+        html, body { height: 100%; margin: 0; }
+        body > div[id]:not([id^="sap-ui-"]),
+        .sapUiComponentContainer,
+        .sapUiView,
+        .sapUiComponentContainer > div { height: 100%; }
+    </style>
+</head>
+<body class="sapUiBody">
+    <div data-sap-ui-component
+         data-name="bpcredit"
+         data-id="container"
+         data-settings='{"id": "bpcredit"}'
+         data-handle-validation="true"
+         style="height: 100%"></div>
+</body>
+</html>

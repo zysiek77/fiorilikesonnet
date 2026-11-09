@@ -1,0 +1,4 @@
+kod jednostki gospodarczej;obszar kontroli kredytowej;kod BP;nazwa BP;cr limit;cr exposure
+PL01;1000;BP0001;Acme;100000,00;25000,50
+PL01;1000;BP0002;Beta;abc;1
+PL01;1000;BP0003

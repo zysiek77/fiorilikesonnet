@@ -1,0 +1,32 @@
+{
+  "name": "bp-credit-limits",
+  "version": "0.1.0",
+  "description": "Fiori Elements (SAPUI5) application for importing bank CSV files and simulating credit limit and exposure updates for business partners",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "cds deploy --to sqlite:db.sqlite && cds serve",
+    "watch": "cds watch",
+    "test": "node --test srv/lib/*.test.js"
+  },
+  "dependencies": {
+    "@cap-js/sqlite": "^2",
+    "@sap/cds": "^9"
+  },
+  "devDependencies": {
+    "@sap/cds-dk": "^9"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sqlite",
+        "credentials": {
+          "url": "db.sqlite"
+        }
+      }
+    }
+  }
+}
