@@ -25,6 +25,9 @@ npm test             # testy jednostkowe parsera CSV i silnika przetwarzania
 
 Aplikacja: `http://localhost:4004/bp-credit/webapp/index.html` (port zależy od konfiguracji CAP).
 
+Przykładowe pliki: `samples/bank-pl-sample.csv` (poprawny, jedna jednostka) oraz
+`samples/bank-pl-invalid.csv` (5 z 7 wierszy `Incorrect`: zła kwota, brak kolumny, pusty obszar, druga jednostka).
+
 
 ### Konfiguracja symulacji SAP
 
